@@ -29,7 +29,7 @@ Built for **ALICE O2Physics** with:
 
 ---
 
-## ✨ Features
+## Features
 
 - **Flax Neural Network** with batch normalization & dropout
 - **Missing Value Handling** - Zero-fills TOF/TPC gaps with indicator features
@@ -39,33 +39,6 @@ Built for **ALICE O2Physics** with:
 - **GPU/TPU Support** - Seamless hardware acceleration
 - **Complete Evaluation** - ROC curves, confusion matrices, precision/recall
 - **JIT Compilation** - Lightning-fast training with automatic differentiation
-
----
-
-## Repository Structure
-
-```
-jax-pid-nn/
-├── README.md
-├── LICENSE
-├── requirements.txt
-├── notebooks/
-│   └── jax_pid_nn_1-2gev.ipynb
-├── src/
-│   ├── model.py
-│   ├── data_loader.py
-│   ├── background_cleaning.py
-│   ├── training.py
-│   └── evaluation.py
-├── scripts/
-│   ├── train.py
-│   ├── evaluate.py
-│   └── predict.py
-└── results/
-    ├── models/
-    ├── plots/
-    └── metrics/
-```
 
 ---
 
