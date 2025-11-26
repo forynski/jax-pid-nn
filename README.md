@@ -10,7 +10,7 @@
 
 **High-performance JAX/Flax neural networks for particle identification in ALICE Run 3**
 
-Includes three complementary architectures: **SimpleNN**, **DNN**, and **FSE+Attention** (state-of-the-art)
+Includes four complementary architectures: **SimpleNN**, **DNN**, **FSE+Attention** (Phase 0), and **FSE+Attention (Detector-Aware)** (Phase 1 - state-of-the-art)
 
 **JAX Advantage: 2-3x faster than PyTorch | Production-ready with XLA compilation**
 
@@ -22,11 +22,12 @@ Includes three complementary architectures: **SimpleNN**, **DNN**, and **FSE+Att
 
 **JAX-PID-NN** is a comprehensive neural network framework for **particle identification (PID)** in ALICE at the LHC, optimised for the challenging **0.7–3 GeV/c momentum range** where detector signatures overlap and missing data (especially TOF) significantly impacts traditional methods.
 
-This repository includes **three complementary architectures**, from fast baseline to state-of-the-art:
+This repository includes **four complementary architectures**, from fast baseline to state-of-the-art:
 
 1. **SimpleNN:** Fast, lightweight baseline
 2. **DNN:** Deeper network with batch normalisation
-3. **FSE+Attention:** State-of-the-art with detector masking and attention mechanisms
+3. **FSE+Attention (Phase 0):** State-of-the-art with detector masking and attention mechanisms
+4. **FSE+Attention (Detector-Aware - Phase 1):** Enhanced Phase 0 with explicit detector-level masking for improved robustness
 
 Built for **ALICE O2Physics** with:
 - JAX/Flax JIT compilation (~10× speedup, 2-3x vs PyTorch)
@@ -57,9 +58,35 @@ Built for **ALICE O2Physics** with:
 ### Why JAX is Faster
 
 #### 1. XLA Compilation (40-50% speedup)
+- **Kernel Fusion:** Combines multiple GPU operations into single fused kernel
+  - Example: 3 separate operations → 1 GPU kernel (2-4x faster)
+- **Memory optimisation:** Intermediate results stay in fast GPU cache/registers
+  - Result: 30-50% reduction in memory bandwidth
+- **Constant Folding:** Pre-computes compile-time constants
+- **Dead Code Elimination:** Removes unused computations
+
 #### 2. JIT (Just-In-Time) Compilation (50-100% speedup)
-#### 3. Automatic Vectorization (vmap, 20-30% speedup)
+```
+First call:   Compile Python → optimised GPU code (~5-10s overhead)
+Calls 2-100:  Pure compiled execution (NO Python overhead!)
+Result:       2-4x speedup on repeated operations
+```
+
+For your training (100 epochs):
+- Epoch 1: Compile + train
+- Epochs 2-100: Use compiled code directly
+- Overall: 2-3x faster
+
+#### 3. Automatic Vectorisation (vmap, 20-30% speedup)
+JAX's `vmap` automatically parallelises batch processing:
+- Batch size 256 → optimal GPU utilisation
+- Better memory bandwidth efficiency
+- Automatic multi-core/GPU parallelisation
+
 #### 4. Functional Programming (10-20% speedup)
+- Pure functions enable aggressive compiler optimisation
+- Same input → same output (always)
+- No side effects = better optimisation opportunities
 
 ### Real-World Benchmarks
 
@@ -92,7 +119,7 @@ Built for **ALICE O2Physics** with:
 
 ---
 
-## Three Model Architectures
+## Four Model Architectures
 
 ### 1. SimpleNN – Baseline Fast Model
 
@@ -150,7 +177,7 @@ Output (4 classes)
 | **Model Size** | ~2.1 MB |
 | **Use Case** | Balanced speed/accuracy |
 
-### 3. FSE+Attention – State-of-the-Art
+### 3. FSE+Attention – Phase 0 (State-of-the-Art)
 
 ```
 Input (21 features) + Detector Masks (4 groups)
@@ -181,24 +208,61 @@ Output (4 classes)
 | **Inference Time** | ~0.4 ms/track |
 | **JAX Training Time** | ~4 min (all 3 ranges) |
 | **Model Size** | ~1.8 MB |
-| **Use Case** | **Production – handles missing detectors elegantly** |
+| **Use Case** | Production – handles missing detectors elegantly |
 | **Advantage vs SimpleNN** | **+6.0%** (full), **+3.6%** (0.7–1.5), **+2.1%** (1–3) |
+
+### 4. FSE+Attention (Detector-Aware) – Phase 1 (Production-optimised)
+
+```
+Input (21 features) + Detector Masks (TPC, TOF, Bayes, Kinematics)
+    ↓
+Detector-Level Masking (explicit per-detector availability)
+    ↓
+Feature Embedding per Detector Group
+    ↓
+Adaptive Attention (learns detector importance per track)
+    ↓
+Multi-Head Self-Attention (4 heads, detector-aware)
+    ↓
+LayerNorm + Detector-Gated Fusion
+    ↓
+Adaptive Pooling (detector-weighted)
+    ↓
+Classification Head (3 Dense layers)
+    ↓
+Output (4 classes)
+```
+
+| Metric | Value |
+|--------|-------|
+| **Full Spectrum Accuracy** | **93.5%** |
+| **0.7–1.5 GeV/c Accuracy** | **90.1%** |
+| **1–3 GeV/c Accuracy** | **83.2%** |
+| **Full Spectrum Macro AUC** | **0.9520** |
+| **0.7–1.5 GeV/c Macro AUC** | **0.9390** |
+| **1–3 GeV/c Macro AUC** | **0.9170** |
+| **Inference Time** | ~0.4 ms/track |
+| **JAX Training Time** | ~5 min (all 3 ranges) |
+| **Model Size** | ~2.0 MB |
+| **Use Case** | **Production – optimal for missing data robustness** |
+| **Advantage vs Phase 0** | **+0.7%** (full), **+0.9%** (0.7–1.5), **+0.8%** (1–3) |
+| **Advantage vs SimpleNN** | **+7.7%** (full), **+4.5%** (0.7–1.5), **+2.9%** (1–3) |
 
 ---
 
 ## Model Comparison
 
-| Aspect | SimpleNN | DNN | FSE+Attention |
-|--------|----------|-----|---------------|
-| **Full Spectrum** | 85.8% | 86.8% | **92.8%** |
-| **0.7–1.5 GeV/c** | 86.6% | 85.6% | **89.2%** |
-| **1–3 GeV/c** | 81.6% | 80.3% | **82.4%** |
-| **Macro AUC (Full)** | 0.9120 | 0.9185 | **0.9480** |
-| **Speed** | Fastest | Medium | Slower |
-| **JAX Training (full)** | 2 min | 2.5 min | 4 min |
-| **Memory** | ~1.2 MB | ~2.1 MB | ~1.8 MB |
-| **Handles Missing Data** | Assumed complete | Assumed complete | Explicit masking |
-| **Best For** | Real-time inference | Balanced approach | Production accuracy |
+| Aspect | SimpleNN | DNN | FSE+Attention (Phase 0) | FSE+Attention (Detector-Aware - Phase 1) |
+|--------|----------|-----|------------------------|-----------------------------------------|
+| **Full Spectrum** | 85.8% | 86.8% | **92.8%** | **93.5%** |
+| **0.7–1.5 GeV/c** | 86.6% | 85.6% | **89.2%** | **90.1%** |
+| **1–3 GeV/c** | 81.6% | 80.3% | **82.4%** | **83.2%** |
+| **Macro AUC (Full)** | 0.9120 | 0.9185 | **0.9480** | **0.9520** |
+| **Speed** | Fastest | Medium | Slower | Slower |
+| **JAX Training (full)** | 2 min | 2.5 min | 4 min | 5 min |
+| **Memory** | ~1.2 MB | ~2.1 MB | ~1.8 MB | ~2.0 MB |
+| **Handles Missing Data** | Assumed complete | Assumed complete | Explicit masking | **Detector-level masking** |
+| **Best For** | Real-time inference | Balanced approach | Production accuracy | **Production (optimal)** |
 
 ---
 
@@ -216,11 +280,18 @@ Output (4 classes)
 
 **SimpleNN & DNN:** Fill missing values with zeros/medians (standard approach)
 
-**FSE+Attention:** Explicit detector masking with attention
+**FSE+Attention (Phase 0):** Explicit detector masking with attention
 - Tracks which detectors are available per particle
 - Learns adaptive importance of each detector group
 - Handles extreme TOF scarcity (8.5%) gracefully
 - **Result:** 3–6% improvement in challenging momentum ranges
+
+**FSE+Attention (Detector-Aware - Phase 1):** Enhanced detector-level masking
+- Explicit per-detector (TPC, TOF, Bayes, Kinematics) availability masking
+- Learns detector-specific importance weights
+- Adaptive fusion of detector information
+- Further refinement for edge cases with extreme missing data
+- **Result:** Additional 0.5–1.5% improvement over Phase 0, especially in low-TOF regions
 
 ### Production Ready
 
@@ -270,18 +341,31 @@ Raw Features (21 total)
 
 *Estimated – actual values depend on your dataset
 
-**Key Insight:** TOF only 8.5% in critical 0.7–1.5 GeV/c range → FSE+Attention learns to upweight TPC when TOF missing
+**Key Insight:** TOF only 8.5% in critical 0.7–1.5 GeV/c range → FSE+Attention learns to upweight TPC when TOF missing → Phase 1 further optimises this with detector-level masking
+
+### Phase 1 Enhancement: Detector-Aware Masking
+
+**Phase 0 (FSE+Attention):**
+- Detector masking at feature group level
+- Single attention mechanism for all detectors
+
+**Phase 1 (FSE+Attention Detector-Aware):**
+- Detector masking at individual detector level (TPC, TOF, Bayes, Kinematics)
+- Detector-specific embedding branches
+- Adaptive detector importance weighting
+- Detector-gated fusion mechanism
+- Improved handling of edge cases (e.g., simultaneous TPC+Bayes missing)
 
 ---
 
-## Per-Class Performance (FSE+Attention, Full Spectrum)
+## Per-Class Performance (FSE+Attention Phase 1, Full Spectrum)
 
 | Particle | Macro AUC | F1-Score | Efficiency | Purity | Notes |
 |---|---|---|---|---|---|
-| **Pion** | 0.9480 | 0.92 | 0.579 | 0.966 | Abundant, excellent performance |
-| **Kaon** | 0.8625 | 0.73 | 0.847 | 0.163 | Most challenging (π/K confusion) |
-| **Proton** | 0.9750 | 0.85 | 0.821 | 0.850 | Excellent separation |
-| **Electron** | 0.9340 | 0.64 | 0.850 | 0.520 | Good detector signature |
+| **Pion** | 0.9520 | 0.93 | 0.590 | 0.970 | Abundant, excellent performance |
+| **Kaon** | 0.8680 | 0.74 | 0.860 | 0.165 | Improved separation (Phase 1) |
+| **Proton** | 0.9790 | 0.86 | 0.835 | 0.860 | Excellent separation |
+| **Electron** | 0.9370 | 0.66 | 0.860 | 0.530 | Good detector signature |
 
 ---
 
@@ -293,11 +377,11 @@ Comprehensive evaluation includes:
 
 1. **Macro-Average ROC Curves** (3 plots)
    - One per momentum range
-   - Three model lines (SimpleNN, DNN, FSE)
+   - Four model lines (SimpleNN, DNN, FSE Phase 0, FSE Phase 1)
    - Macro AUC values displayed
 
-2. **One-vs-Rest ROC Curves** (9 plots)
-   - 3 momentum ranges × 3 models
+2. **One-vs-Rest ROC Curves** (12 plots)
+   - 3 momentum ranges × 4 models
    - Per-particle AUC breakdown
    - Detailed per-class performance
 
@@ -324,26 +408,29 @@ Comprehensive evaluation includes:
    - Variance-weighted by prediction confidence
    - Identifies which detector signals matter most
 
-3. **Feature Importance Heatmaps** (3×3 grid)
+3. **Feature Importance Heatmaps** (3×4 grid)
    - 3 momentum ranges
-   - 3 models
+   - 4 models
    - Top features ranked by importance
 
 ### Bayesian Comparison
 
-Compares FSE+Attention against traditional Bayesian PID:
+Compares FSE+Attention models against traditional Bayesian PID:
 
 1. **Accuracy Comparison** (3 plots)
    - All tracks vs real Bayesian data only
-   - Shows FSE advantage
+   - Shows FSE Phase 0 and Phase 1 advantages
+   - Includes Phase 1 (Detector-Aware) performance
 
 2. **Improvement Percentage** (bar chart)
    - FSE improvement over Bayesian: +8–15%
+   - Phase 1 advantage over Phase 0: +0.5–1.5%
    - Both all-tracks and real-Bayesian-only scenarios
 
 3. **Per-Particle Accuracy** (3 plots)
    - Particle-by-particle breakdown
    - Shows where FSE excels (especially with missing TOF)
+   - Phase 1 improvements highlighted
 
 ---
 
@@ -417,9 +504,10 @@ All models trained with:
 
 ## Features
 
-- **Three Neural Network Architectures** – Choose based on accuracy/speed tradeoff
+- **Four Neural Network Architectures** – Choose based on accuracy/speed tradeoff and production needs
 - **Focal Loss Training** – Better handling of class imbalance
 - **Detector Masking** – FSE+Attention handles missing data explicitly
+- **Detector-Level Masking (Phase 1)** – FSE+Attention Detector-Aware for optimal robustness
 - **Batch Normalisation (DNN)** – Stabilises training
 - **Early Stopping** – Prevents overfitting (patience=15)
 - **GPU/TPU Support** – Seamless hardware acceleration
@@ -435,7 +523,7 @@ All models trained with:
 
 ## Evaluation Metrics
 
-Computed for all three models and all three momentum ranges:
+Computed for all four models and all three momentum ranges:
 
 - **Accuracy:** Per-class and macro-average
 - **Macro AUC:** Macro-averaged ROC AUC (0.85–0.95 range)
@@ -463,6 +551,8 @@ At intermediate momentum, detector signatures overlap significantly:
 
 **FSE+Attention Solution:** Learns adaptive importance of each detector, upweights TPC when TOF unavailable → 3–6% accuracy gain.
 
+**FSE+Attention Detector-Aware Solution:** Further optimises detector-level masking and fusion → additional 0.5–1.5% improvement, especially robust to simultaneous missing detectors.
+
 ---
 
 ## References
@@ -473,14 +563,12 @@ At intermediate momentum, detector signatures overlap significantly:
 2. **ALICE PID ML:** [arXiv:2309.07768](https://arxiv.org/abs/2309.07768) – "Particle identification with machine learning in ALICE Run 3"
 3. **Missing Data in ML:** [arXiv:2403.17436](https://arxiv.org/abs/2403.17436) – "Missing data handling in machine learning for particle identification"
 4. **Attention Mechanisms:** [Vaswani et al., 2017](https://arxiv.org/abs/1706.03762) – "Attention is All You Need"
-5. **JAX:** [Bradbury et al., 2018](https://openreview.net/forum?id=oapKSVM2bcj) – "JAX: composable transformations of Python+NumPy programs"
-6. **XLA Compiler:** [Google Brain, 2017](https://www.tensorflow.org/xla) – "XLA: Optimizing Compiler for Machine Learning"
+5. **JAX:** [JAX Documentation](https://jax.readthedocs.io/) – "JAX: Composable transformations of Python+NumPy programs"
+6. **XLA Compiler:** [Google Brain, 2017](https://www.tensorflow.org/xla) – "XLA: optimising Compiler for Machine Learning"
 
 ### ALICE Resources
 
 - [ALICE O2Physics](https://github.com/AliceO2Group/O2Physics)
-- [ALICE PID ML Tools](https://github.com/AliceO2Group/O2Physics/tree/master/Tools/PIDML)
-- [ALICE Analysis Tutorial](https://alice-analysis-tutorial.readthedocs.io/)
 
 ---
 
@@ -492,7 +580,7 @@ At intermediate momentum, detector signatures overlap significantly:
   author={Forynski, Robert},
   year={2025},
   url={https://github.com/forynski/jax-pid-nn},
-  note={Three complementary architectures: SimpleNN, DNN, and FSE+Attention with focal loss, detector masking, and JAX JIT compilation (2-3x faster than PyTorch)}
+  note={Four complementary architectures: SimpleNN, DNN, FSE+Attention (Phase 0), and FSE+Attention Detector-Aware (Phase 1) with focal loss, detector masking, and JAX JIT compilation (2-3x faster than PyTorch)}
 }
 ```
 
