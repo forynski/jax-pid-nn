@@ -12,7 +12,7 @@
 
 Includes four complementary architectures: **SimpleNN**, **DNN**, **FSE+Attention** (Phase 0), and **FSE+Attention (Detector-Aware)** (Phase 1 - state-of-the-art)
 
-**JAX Advantage: 2-3x faster than PyTorch | Production-ready with XLA compilation**
+**JAX | Production-ready with XLA compilation**
 
 </div>
 
