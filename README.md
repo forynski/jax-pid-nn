@@ -10,7 +10,7 @@
 
 **High-performance JAX/Flax neural networks for particle identification in ALICE Run 3**
 
-Includes four complementary architectures: **SimpleNN**, **DNN**, **FSE+Attention** (Phase 0), and **FSE+Attention (Detector-Aware)** (Phase 1 - state-of-the-art)
+Includes four complementary architectures: **Simple NN**, **DNN**, **FSE + Attention** (Phase 0), and **FSE + Attention (Detector-Aware)** (Phase 1 - state-of-the-art)
 
 **JAX | Production-ready with XLA compilation**
 
