@@ -71,10 +71,10 @@ Full Spectrum:
 
 This repository includes **four complementary architectures**, rigorously trained and evaluated:
 
-1. **SimpleNN:** Fast, lightweight baseline (approximately 2 min training)
-2. **DNN:** Deeper with batch normalisation – **best overall accuracy** (approximately 2.5 min training)
-3. **FSE+Attention (Phase 0):** Detector masking + attention mechanisms (approximately 4 min training)
-4. **FSE+Attention (Detector-Aware - Phase 1):** Enhanced detector-level masking for robustness (approximately 5 min training)
+1. **SimpleNN:** Fast, lightweight baseline
+2. **DNN:** Deeper with batch normalisation – **best overall accuracy**
+3. **FSE+Attention (Phase 0):** Detector masking + attention mechanisms
+4. **FSE+Attention (Detector-Aware - Phase 1):** Enhanced detector-level masking for robustness
 
 ### Built for Production
 
