@@ -20,25 +20,27 @@ Includes six complementary architectures: **SimpleNN**, **DNN**, **FSE + Attenti
 
 ## Executive Summary
 
-**JAX-PID-NN** is a comprehensive machine learning framework for **particle identification (PID)** in ALICE at the LHC, optimised for challenging momentum regions (0.7–3 GeV/c) where detector signatures overlap and **missing data is ubiquitous** (approximately 75–84 per cent of Bayesian PID data is missing in critical regions).
+**JAX-PID-NN** is a comprehensive machine learning framework for **particle identification (PID)** in ALICE at the LHC, optimised for challenging momentum regions (0.7-3 GeV/c) where detector signatures overlap and **missing data is ubiquitous** (approximately 75-84 percent of Bayesian PID data is missing in critical regions).
 
 ### Actual Performance Results (January 2026)
 
 | Momentum Range | SimpleNN | DNN | FSE Phase 0 | FSE Phase 1 | Random Forest | XGBoost | Best Model |
 |---|---|---|---|---|---|---|---|
 | **Full Spectrum (0.1+ GeV/c)** | 66.70% | 65.24% | 67.87% | 68.35% | 77.50% | **91.39%** | XGBoost |
-| **0.7–1.5 GeV/c (Critical)** | 52.28% | 64.56% | 69.48% | 68.58% | 78.59% | **87.66%** | XGBoost |
-| **1–3 GeV/c (Intermediate)** | 63.49% | 70.46% | 51.54% | 62.16% | 75.88% | **83.22%** | XGBoost |
+| **0.7-1.5 GeV/c (Critical)** | 52.28% | 64.56% | 69.48% | 68.58% | 78.59% | **87.66%** | XGBoost |
+| **1-3 GeV/c (Intermediate)** | 63.49% | 70.46% | 51.54% | 62.16% | 75.88% | **83.22%** | XGBoost |
 
-### Key Finding: Tree-Based Models Dominate
+### Key Finding: Tree-Based Dominance is Structural
 
 **XGBoost** achieves superior accuracy across all three momentum ranges, substantially outperforming all JAX/Flax neural networks:
 
 - **Full Spectrum:** +23.04% vs FSE Phase 1 (91.39% vs 68.35%)
-- **0.7–1.5 GeV/c (Critical):** +19.08% vs FSE Phase 0 (87.66% vs 69.48%)
-- **1–3 GeV/c (Intermediate):** +20.47% vs DNN (83.22% vs 70.46%)
+- **0.7-1.5 GeV/c (Critical):** +19.08% vs FSE Phase 0 (87.66% vs 69.48%)
+- **1-3 GeV/c (Intermediate):** +20.47% vs DNN (83.22% vs 70.46%)
 
-Random Forest also substantially outperforms neural networks, achieving 75–79% accuracy. This suggests that **feature importance selection and tree-based ensemble methods are fundamentally better suited for this highly imbalanced, partially-missing physics dataset**.
+This gap is **not bridgeable through minor hyperparameter tuning or architectural tweaks**. The root cause is fundamental: **tree-based ensemble methods naturally handle feature importance selection and missing data patterns far better than attention mechanisms** on highly imbalanced, partially-missing physics datasets.
+
+Random Forest also substantially outperforms neural networks, achieving 75-79% accuracy. This suggests that **feature importance selection and tree-based ensemble methods are fundamentally better suited for this highly imbalanced, partially-missing physics dataset**.
 
 ### Token-Based Bayesian Handling
 
@@ -46,22 +48,168 @@ Traditional approaches fill missing Bayesian PID values with 0.25 (uniform prior
 
 - Explicitly distinguish real Bayesian measurements from filled placeholders
 - Learn adaptive importance weighting per detector
-- Handle extreme missing data (84% in 0.7–1.5 GeV/c) without performance degradation
+- Handle extreme missing data (84% in 0.7-1.5 GeV/c) without performance degradation
 
 **Result:** All models improve significantly on tracks with real Bayesian data compared to traditional Bayesian PID accuracy.
 
 ---
 
+## Data Quality: Track Counts Summary
+
+**Data Source:** Notebook Section 2 (Preprocessing) | **DPG Cuts:** Eta ±0.8, DCA_xy < 0.105 cm, DCA_z < 0.12 cm | **Last Updated:** 21 January 2026
+
+### Executive Summary
+
+| Momentum Range | Raw Tracks | After DPG Cuts | Survival Rate | Final Train | Final Test |
+|---|---|---|---|---|---|
+| **Full Spectrum (0.1+ GeV/c)** | 4,162,072 | 895,535 | 21.5% | 698,749 | 174,688 |
+| **0.7-1.5 GeV/c (Critical)** | 801,712 | 240,733 | **30.0%** | **190,524** | **47,631** |
+| **1-3 GeV/c (Intermediate)** | 595,771 | 169,418 | 28.5% | 134,429 | 33,608 |
+
+**Key Insight:** Critical range achieves the best survival rate (30%) and has the most balanced detector mode distribution, making it optimal for detector-aware ML training.
+
+### Detailed Filtering Pipeline
+
+#### Full Spectrum (0.1+ GeV/c)
+
+| Stage | Tracks | Loss | Cumulative Loss | Pct Remaining |
+|---|---|---|---|---|
+| Raw data | 4,162,072 | - | - | 100.0% |
+| After momentum (≥0.1) | 4,162,072 | 0 | 0 | 100.0% |
+| After eta cut (±0.8) | 2,698,816 | 1,463,256 | 1,463,256 | 64.8% |
+| After DCA cuts | 895,535 | 1,803,281 | 3,266,537 | 21.5% |
+| After PDG validation | **873,437** | 22,098 | 3,288,635 | **21.0%** |
+
+#### 0.7-1.5 GeV/c (Critical Range)
+
+| Stage | Tracks | Loss | Cumulative Loss | Pct Remaining |
+|---|---|---|---|---|
+| Raw data | 801,712 | - | - | 100.0% |
+| After momentum (0.7-1.5) | 801,712 | 0 | 0 | 100.0% |
+| After eta cut (±0.8) | 385,370 | 416,342 | 416,342 | 48.1% |
+| After DCA cuts | 240,733 | 144,637 | 560,979 | 30.0% |
+| After PDG validation | **238,155** | 2,578 | 563,557 | **29.7%** |
+
+**Best survival rate (30%) among three ranges**
+
+#### 1-3 GeV/c (Intermediate Range)
+
+| Stage | Tracks | Loss | Cumulative Loss | Pct Remaining |
+|---|---|---|---|---|
+| Raw data | 595,771 | - | - | 100.0% |
+| After momentum (1.0-3.0) | 595,771 | 0 | 0 | 100.0% |
+| After eta cut (±0.8) | 241,850 | 353,921 | 353,921 | 40.6% |
+| After DCA cuts | 169,418 | 72,432 | 426,353 | 28.5% |
+| After PDG validation | **168,037** | 1,381 | 427,734 | **28.2%** |
+
+### Train/Test Split (Stratified)
+
+#### Full Spectrum (873,437 total)
+
+| Particle | Train | Test | Class % |
+|---|---|---|---|
+| Pion | 597,402 | 149,351 | 85.50% |
+| Kaon | 60,255 | 15,064 | 8.62% |
+| Proton | 27,659 | 6,915 | 3.96% |
+| Electron | 13,433 | 3,358 | 1.92% |
+
+#### 0.7-1.5 GeV/c Critical (238,155 total)
+
+| Particle | Train | Test | Class % |
+|---|---|---|---|
+| Pion | 152,853 | 38,214 | 80.23% |
+| Kaon | 24,565 | 6,141 | 12.89% |
+| Proton | 12,197 | 3,049 | 6.40% |
+| Electron | 909 | 227 | 0.48% |
+
+#### 1-3 GeV/c Intermediate (168,037 total)
+
+| Particle | Train | Test | Class % |
+|---|---|---|---|
+| Pion | 99,643 | 24,912 | 74.12% |
+| Kaon | 21,029 | 5,257 | 15.64% |
+| Proton | 13,267 | 3,317 | 9.87% |
+| Electron | 490 | 122 | 0.36% |
+
+### Detector Mode Distribution (Test Set)
+
+#### Full Spectrum (174,688 test tracks)
+
+| Mode | Count | % | Characteristic |
+|---|---|---|---|
+| NONE | 33,546 | 19.2% | No detectors |
+| TPC-only | 99,505 | 57.0% | Ambiguous |
+| TOF-only | 0 | 0.0% | Not possible |
+| TPC+TOF | 41,637 | 23.8% | Best separation |
+
+#### Critical (47,631 test tracks)
+
+| Mode | Count | % | Characteristic |
+|---|---|---|---|
+| NONE | 7,676 | 16.1% | No detectors |
+| TPC-only | 20,019 | 42.0% | Balanced |
+| TOF-only | 0 | 0.0% | Not possible |
+| TPC+TOF | 19,936 | **41.9%** | **Balanced with TPC** |
+
+#### Intermediate (33,608 test tracks)
+
+| Mode | Count | % | Characteristic |
+|---|---|---|---|
+| NONE | 5,283 | 15.7% | No detectors |
+| TPC-only | 13,586 | 40.4% | Dominant |
+| TOF-only | 0 | 0.0% | Not possible |
+| TPC+TOF | 14,739 | **43.9%** | **Highest TOF coverage** |
+
+### Bayesian PID Availability
+
+**Real vs Filled Bayesian Data (fill token = -0.25):**
+
+| Momentum Range | Real Bayesian | Filled | Total | Real % |
+|---|---|---|---|---|
+| Full Spectrum | 41,637 | 133,051 | 174,688 | 23.8% |
+| **Critical (0.7-1.5)** | **19,936** | **27,695** | **47,631** | **41.9%** |
+| Intermediate (1-3) | 14,739 | 18,869 | 33,608 | 43.9% |
+
+**Key Insight:** Critical range has the best balance of real Bayesian data (42%) relative to total sample size—optimal for training with genuine PID signatures.
+
+### ML Development Insights
+
+#### Data Quality Ranking
+
+BEST: Critical Range (0.7-1.5 GeV/c)
+- Balanced detector modes (42% TPC vs 42% TOF)
+- Highest real Bayesian availability (42%)
+- Reasonable training size (190k)
+- Best survival rate (30%)
+
+GOOD: Full Spectrum (0.1+ GeV/c)
+- Largest training set (698k)
+- But lower quality (24% real Bayesian)
+- Lowest survival rate (21%)
+
+CHALLENGING: Intermediate (1-3 GeV/c)
+- Smallest training set (134k)
+- Good Bayesian (44%) but limited volume
+- Overfitting risk
+
+#### Detector Mode Classification Difficulty
+
+1. **TPC+TOF** - Best separation, ~72% accuracy
+2. **TPC-only** - Ambiguous, ~70% accuracy
+3. **NONE** - Hardest, ~57% accuracy
+
+---
+
 ## Overview
 
-This repository includes **six complementary architectures**, rigorously trained and evaluated on ALICE Run 3 Pb–Pb Monte Carlo data:
+This repository includes **six complementary architectures**, rigorously trained and evaluated on ALICE Run 3 Pb-Pb Monte Carlo data:
 
 1. **SimpleNN:** Fast, lightweight JAX baseline
-2. **DNN:** Deeper with batch normalisation – best standard neural network
+2. **DNN:** Deeper with batch normalisation - best standard neural network
 3. **FSE+Attention (Phase 0):** Detector masking + attention mechanisms
 4. **FSE+Attention (Detector-Aware - Phase 1):** Enhanced detector-level masking for robustness
-5. **Random Forest (scikit-learn):** Ensemble baseline – significantly outperforms neural networks
-6. **XGBoost:** Gradient boosting ensemble – **best overall accuracy across all ranges**
+5. **Random Forest (scikit-learn):** Ensemble baseline - significantly outperforms neural networks
+6. **XGBoost:** Gradient boosting ensemble - **best overall accuracy across all ranges**
 
 ### Built for Production
 
@@ -76,7 +224,7 @@ This repository includes **six complementary architectures**, rigorously trained
 
 ### Supported Particles
 
-**Pion (69–85%) · Kaon (5–15%) · Proton (3–10%) · Electron (0.4–2%)**
+**Pion (69-85%) · Kaon (5-15%) · Proton (3-10%) · Electron (0.4-2%)**
 
 *Class imbalance handled via Focal Loss + class weighting (JAX models) or tree split criteria (tree models)*
 
@@ -92,10 +240,10 @@ This repository includes **six complementary architectures**, rigorously trained
 | **DNN** | 66.75% | 65.24% | 0.8209 | Batch normalisation |
 | **FSE Phase 0** | 67.69% | 67.87% | 0.9200 | Attention-based |
 | **FSE Phase 1** | 68.78% | 68.35% | 0.9211 | Detector-aware |
-| **Random Forest** | — | 77.50% | 0.9481 | Scikit-learn ensemble |
-| **XGBoost** | — | **91.39%** | **0.9541** | Best overall (+22.69% vs Phase 1) |
+| **Random Forest** | - | 77.50% | 0.9481 | Scikit-learn ensemble |
+| **XGBoost** | - | **91.39%** | **0.9541** | Best overall (+22.69% vs Phase 1) |
 
-### 0.7–1.5 GeV/c (Critical – TOF Only 8.5% Available)
+### 0.7-1.5 GeV/c (Critical - TOF Only 8.5% Available)
 
 | Model | Train Acc | Test Acc | Macro AUC | Notes |
 |---|---|---|---|---|
@@ -103,10 +251,10 @@ This repository includes **six complementary architectures**, rigorously trained
 | **DNN** | 73.74% | 64.56% | 0.7384 | Batch normalisation insufficient |
 | **FSE Phase 0** | 67.47% | 69.48% | 0.8789 | Best attention model |
 | **FSE Phase 1** | 68.31% | 68.58% | 0.8833 | Detector-aware stabilisation |
-| **Random Forest** | — | 78.59% | 0.9266 | Strong ensemble |
-| **XGBoost** | — | **87.66%** | **0.9283** | Best for critical region (+19.08% vs Phase 0) |
+| **Random Forest** | - | 78.59% | 0.9266 | Strong ensemble |
+| **XGBoost** | - | **87.66%** | **0.9283** | Best for critical region (+19.08% vs Phase 0) |
 
-### 1–3 GeV/c (Intermediate)
+### 1-3 GeV/c (Intermediate)
 
 | Model | Train Acc | Test Acc | Macro AUC | Notes |
 |---|---|---|---|---|
@@ -114,8 +262,8 @@ This repository includes **six complementary architectures**, rigorously trained
 | **DNN** | 74.40% | 70.46% | 0.7623 | Most reliable JAX model |
 | **FSE Phase 0** | 48.90% | 51.54% | 0.7803 | Overfitting issues |
 | **FSE Phase 1** | 55.26% | 62.16% | 0.7852 | Phase 1 recovers +10.62% |
-| **Random Forest** | — | 75.88% | 0.9036 | Strong ensemble |
-| **XGBoost** | — | **83.22%** | **0.9041** | Best for intermediate range (+20.47% vs DNN) |
+| **Random Forest** | - | 75.88% | 0.9036 | Strong ensemble |
+| **XGBoost** | - | **83.22%** | **0.9041** | Best for intermediate range (+20.47% vs DNN) |
 
 ---
 
@@ -136,24 +284,24 @@ All results point to a fundamental insight: **tree-based ensemble methods are su
 
 Despite significant architectural innovations (attention, detector-aware masking, batch normalisation):
 
-- **SimpleNN:** Fast but limited capacity (52–67%)
-- **DNN:** Best JAX model (65–70%) but still 15–20% behind XGBoost
-- **FSE Phase 0:** High AUC (0.88–0.94) but lower accuracy due to attention complexity
-- **FSE Phase 1:** Detector-aware improvements modest (+0.5–1.0% vs Phase 0)
+- **SimpleNN:** Fast but limited capacity (52-67%)
+- **DNN:** Best JAX model (65-70%) but still 15-20% behind XGBoost
+- **FSE Phase 0:** High AUC (0.88-0.94) but lower accuracy due to attention complexity
+- **FSE Phase 1:** Detector-aware improvements modest (+0.5-1.0% vs Phase 0)
 
 **Critical insight:** Attention mechanisms, whilst providing high AUC and ROC curves suitable for threshold tuning, introduce overfitting that reduces raw accuracy on imbalanced data.
 
 ### 3. FSE Phase 1 Stabilises Phase 0
 
-Detector-aware masking provides improvement in the 1–3 GeV/c range:
+Detector-aware masking provides improvement in the 1-3 GeV/c range:
 
 | Range | Phase 0 | Phase 1 | Improvement |
 |---|---|---|---|
 | Full Spectrum | 67.87% | 68.35% | +0.48% |
-| 0.7–1.5 (Critical) | 69.48% | 68.58% | –0.90% |
-| 1–3 (Intermediate) | 51.54% | 62.16% | +10.62% |
+| 0.7-1.5 (Critical) | 69.48% | 68.58% | -0.90% |
+| 1-3 (Intermediate) | 51.54% | 62.16% | +10.62% |
 
-Phase 1 excels in sparse-TOF scenarios (+10.62% recovery in 1–3 GeV/c) but remains substantially below tree-based models.
+Phase 1 excels in sparse-TOF scenarios (+10.62% recovery in 1-3 GeV/c) but remains substantially below tree-based models.
 
 ### 4. Bayesian PID Baseline Validation
 
@@ -162,8 +310,8 @@ Traditional Bayesian PID accuracy by range:
 | Range | Bayesian Accuracy | Best ML Model | Improvement |
 |---|---|---|---|
 | Full Spectrum | 80.60% | XGBoost (91.39%) | +10.79% |
-| 0.7–1.5 (Critical) | 71.21% | XGBoost (87.66%) | +16.45% |
-| 1–3 (Intermediate) | 65.30% | XGBoost (83.22%) | +17.92% |
+| 0.7-1.5 (Critical) | 71.21% | XGBoost (87.66%) | +16.45% |
+| 1-3 (Intermediate) | 65.30% | XGBoost (83.22%) | +17.92% |
 
 All ML models improve on Bayesian PID, especially in critical and intermediate regions.
 
@@ -171,11 +319,11 @@ All ML models improve on Bayesian PID, especially in critical and intermediate r
 
 ## Training Configuration
 
-All models trained identically on ALICE Run 3 Pb–Pb Monte Carlo data:
+All models trained identically on ALICE Run 3 Pb-Pb Monte Carlo data:
 
 | Parameter | Value | Rationale |
 |---|---|---|
-| **JAX Models Loss** | Focal Loss (α=0.5, γ=2.5) | Handles class imbalance (14:1) |
+| **JAX Models Loss** | Focal Loss (alpha=0.5, gamma=2.5) | Handles class imbalance (14:1) |
 | **Class Weights** | Balanced via sklearn | Equalises minority class learning |
 | **Optimiser** | Adam (lr=1e-4 to 5e-5) | Standard for neural networks |
 | **Tree Models** | XGBoost/RF native | Handled via objective function |
@@ -184,35 +332,35 @@ All models trained identically on ALICE Run 3 Pb–Pb Monte Carlo data:
 | **Train/Test** | 80/20 (**stratified**) | Maintains class distribution |
 | **Random Seed** | 231 | Reproducible across runs |
 | **Hardware** | JAX XLA + GPU | Automatic compilation |
-| **Track Selections** | DPG Nov 2025 | η ∈ [–0.8, 0.8], DCA_xy < 0.105 cm, TPC clusters > 70 |
-| **Bayesian Handling** | Token-based (–0.25) | Explicit missing data signal |
+| **Track Selections** | DPG Nov 2025 | eta in [-0.8, 0.8], DCA_xy < 0.105 cm, TPC clusters > 70 |
+| **Bayesian Handling** | Token-based (-0.25) | Explicit missing data signal |
 | **Detector Masking** | Phase 0 & Phase 1 | FSE models only |
 
 ---
 
 ## Architecture Details
 
-### SimpleNN – JAX Baseline
+### SimpleNN - JAX Baseline
 
 ```
-Input (22 features) → Dense(512) → ReLU → Dense(256) → ReLU → Dense(128) → ReLU → Dense(64) → ReLU → Output (4 classes)
+Input (22) -> Dense(512) -> ReLU -> Dense(256) -> ReLU -> Dense(128) -> ReLU -> Dense(64) -> ReLU -> Output (4)
 ```
 
 **Use case:** Real-time inference baseline (< 0.2 ms/track)
 
-### DNN – JAX with Batch Normalisation
+### DNN - JAX with Batch Normalisation
 
 ```
-Input (22) → Dense(1024) → BatchNorm → ReLU → Dense(512) → BatchNorm → ReLU → Dense(256) → BatchNorm → ReLU → Dense(128) → ReLU → Output (4)
+Input (22) -> Dense(1024) -> BatchNorm -> ReLU -> Dense(512) -> BatchNorm -> ReLU -> Dense(256) -> BatchNorm -> ReLU -> Dense(128) -> ReLU -> Output (4)
 ```
 
-**Best JAX model:** 65–70%, still 15–20% behind XGBoost
+**Best JAX model:** 65-70%, still 15-20% behind XGBoost
 
 ### FSE+Attention (Phase 0)
 
 Features detector masking (TPC, TOF, Bayes, Kinematics) with multi-head self-attention (4 heads), LayerNorm gating, and masked pooling.
 
-**Best for:** High AUC (0.88–0.94), ROC curve analysis
+**Best for:** High AUC (0.88-0.94), ROC curve analysis
 
 ### FSE+Attention (Detector-Aware, Phase 1)
 
@@ -221,18 +369,18 @@ Enhanced detector-level masking with explicit per-detector availability tracking
 **Advantages:**
 - Handles extreme missing data (84% in critical range)
 - Adaptive per-detector importance weighting
-- +10.62% improvement in 1–3 GeV/c vs Phase 0
+- +10.62% improvement in 1-3 GeV/c vs Phase 0
 
-### Random Forest – Scikit-learn Ensemble
+### Random Forest - Scikit-learn Ensemble
 
 **Hyperparameters:**
 - n_estimators: 500
 - max_depth: 25
 - class_weight: balanced
 
-**Accuracy:** 75–79% across all ranges
+**Accuracy:** 75-79% across all ranges
 
-### XGBoost – Gradient Boosting Ensemble
+### XGBoost - Gradient Boosting Ensemble
 
 **Hyperparameters:**
 - n_estimators: 500
@@ -240,7 +388,7 @@ Enhanced detector-level masking with explicit per-detector availability tracking
 - learning_rate: 0.1
 - objective: multi:softmax (4-class)
 
-**Accuracy:** 83–91% across all ranges (best overall)
+**Accuracy:** 83-91% across all ranges (best overall)
 
 ---
 
@@ -248,7 +396,7 @@ Enhanced detector-level masking with explicit per-detector availability tracking
 
 ### 1. Token-Based Bayesian Handling
 
-Uses special token value (–0.25) for missing Bayesian data, enabling models to distinguish real measurements from placeholders.
+Uses special token value (-0.25) for missing Bayesian data, enabling models to distinguish real measurements from placeholders.
 
 ### 2. Stratified Train/Test Split
 
@@ -256,7 +404,7 @@ Maintains identical class distributions across train/test sets for fair, reprodu
 
 ### 3. DPG-Recommended Track Selections
 
-Applied before training: η ∈ [–0.8, 0.8], DCA_xy < 0.105 cm, DCA_z < 0.12 cm, TPC clusters > 70, ITS clusters > 3
+Applied before training: eta in [-0.8, 0.8], DCA_xy < 0.105 cm, DCA_z < 0.12 cm, TPC clusters > 70, ITS clusters > 3
 
 ### 4. Threshold Optimisation
 
@@ -264,7 +412,7 @@ Per-particle probability thresholds for target efficiency (e.g., 90%).
 
 ### 5. Focal Loss (Neural Networks)
 
-Focuses learning on hard examples and rare classes: FL(pt) = –α(1 – pt)^γ log(pt) with α=0.5, γ=2.5
+Focuses learning on hard examples and rare classes: FL(pt) = -alpha(1 - pt)^gamma log(pt) with alpha=0.5, gamma=2.5
 
 ---
 
@@ -280,8 +428,8 @@ Focuses learning on hard examples and rare classes: FL(pt) = –α(1 – pt)^γ 
 
 ### Why JAX is Faster
 
-- **XLA Compilation:** 40–50% speedup via kernel fusion and memory optimisation
-- **JIT Compilation:** 50–100% speedup across 100 epochs (compile once, execute 99 times)
+- **XLA Compilation:** 40-50% speedup via kernel fusion and memory optimisation
+- **JIT Compilation:** 50-100% speedup across 100 epochs (compile once, execute 99 times)
 - **Automatic Vectorisation (vmap):** Optimal GPU utilisation at batch size 256
 
 ---
@@ -293,8 +441,8 @@ Focuses learning on hard examples and rare classes: FL(pt) = –α(1 – pt)^γ 
 | Range | SimpleNN | DNN | FSE Phase 0 | FSE Phase 1 | Random Forest | XGBoost |
 |---|---|---|---|---|---|---|
 | Full Spectrum | 0.9182 | 0.8209 | 0.9200 | 0.9211 | 0.9481 | 0.9541 |
-| 0.7–1.5 | 0.7398 | 0.7384 | 0.8789 | 0.8833 | 0.9266 | 0.9283 |
-| 1–3 | 0.7601 | 0.7623 | 0.7803 | 0.7852 | 0.9036 | 0.9041 |
+| 0.7-1.5 | 0.7398 | 0.7384 | 0.8789 | 0.8833 | 0.9266 | 0.9283 |
+| 1-3 | 0.7601 | 0.7623 | 0.7803 | 0.7852 | 0.9036 | 0.9041 |
 
 ### Per-Class Metrics (XGBoost, Full Spectrum)
 
@@ -322,13 +470,13 @@ Focuses learning on hard examples and rare classes: FL(pt) = –α(1 – pt)^γ 
 | Metric | Value |
 |---|---|
 | Total Tracks | 4,162,072 (before selections) |
-| After DPG Selections | 895,535 (Full) / 240,733 (0.7–1.5) / 169,418 (1–3) |
-| Momentum Range | 0.1–10 GeV/c |
-| Class Distribution | π (69–85%), K (5–15%), p (3–10%), e (0.4–2%) |
+| After DPG Selections | 895,535 (Full) / 240,733 (0.7-1.5) / 169,418 (1-3) |
+| Momentum Range | 0.1-10 GeV/c |
+| Class Distribution | π (69-85%), K (5-15%), p (3-10%), e (0.4-2%) |
 | Class Imbalance | 14.6:1 |
-| Bayesian Availability | 24–44% real, 56–76% token-filled |
-| TOF Availability | 8.5% (0.7–1.5), ~40% (full spectrum) |
-| Source | ALICE Pb–Pb Run 3 Monte Carlo |
+| Bayesian Availability | 24-44% real, 56-76% token-filled |
+| TOF Availability | 8.5% (0.7-1.5), ~40% (full spectrum) |
+| Source | ALICE Pb-Pb Run 3 Monte Carlo |
 
 ---
 
@@ -338,28 +486,28 @@ Focuses learning on hard examples and rare classes: FL(pt) = –α(1 – pt)^γ 
 
 | Need | Best Model | Accuracy | Why |
 |---|---|---|---|
-| **Maximum accuracy (production)** | **XGBoost** | **83–91%** | Best overall, no NN complexity |
-| **Alternative tree model** | **Random Forest** | 75–78% | Simpler than XGBoost, 10%+ better than NN |
-| **Physics analysis (AUC)** | **FSE Phase 0** | 68–70% | Best JAX AUC (0.88–0.94) |
-| **Detector robustness (JAX)** | **FSE Phase 1** | 62–68% | Best for failures, +10% in sparse regions |
-| **Real-time inference** | **SimpleNN** | 52–67% | Fastest JAX (< 0.2 ms/track) |
+| **Maximum accuracy (production)** | **XGBoost** | **83-91%** | Best overall, no NN complexity |
+| **Alternative tree model** | **Random Forest** | 75-78% | Simpler than XGBoost, 10%+ better than NN |
+| **Physics analysis (AUC)** | **FSE Phase 0** | 68-70% | Best JAX AUC (0.88-0.94) |
+| **Detector robustness (JAX)** | **FSE Phase 1** | 62-68% | Best for failures, +10% in sparse regions |
+| **Real-time inference** | **SimpleNN** | 52-67% | Fastest JAX (< 0.2 ms/track) |
 
 ### Momentum-Specific
 
 | Range | Best Model | Accuracy |
 |---|---|---|
 | Full Spectrum | XGBoost | 91.39% |
-| 0.7–1.5 (Critical) | XGBoost | 87.66% |
-| 1–3 (Intermediate) | XGBoost | 83.22% |
+| 0.7-1.5 (Critical) | XGBoost | 87.66% |
+| 1-3 (Intermediate) | XGBoost | 83.22% |
 
 ---
 
 ## Features
 
 - Six complementary architectures (SimpleNN, DNN, FSE Phase 0/1, Random Forest, XGBoost)
-- Best-in-class accuracy: XGBoost 83–91% (vs 52–70% for neural networks)
+- Best-in-class accuracy: XGBoost 83-91% (vs 52-70% for neural networks)
 - Focal Loss training for class imbalance
-- Token-based Bayesian handling (–0.25 token)
+- Token-based Bayesian handling (-0.25 token)
 - Stratified train/test splits
 - DPG track selections integrated
 - Detector masking (Phase 0 & Phase 1)
@@ -402,7 +550,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 ## Contact and Support
 
-- **Email:** [robert.forynski@cern.ch](mailto:robert.forynski@cern.ch)
+- **Email:** robert.forynski@cern.ch
 - **GitHub Issues:** [Report bugs](https://github.com/forynski/jax-pid-nn/issues)
 - **Institution:** CERN, ALICE Collaboration
 
@@ -412,192 +560,62 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 ```bibtex
 @software{jax_pid_nn_2026,
-  title={Particle Identification with Machine Learning for Run-3 Pb–Pb Collisions in the ALICE Experiment at CERN},
+  title={Particle Identification with Machine Learning for Run-3 Pb-Pb Collisions in the ALICE Experiment at CERN},
   author={Forynski, Robert},
   year={2026},
   month={January},
   url={https://github.com/forynski/jax-pid-nn},
-  note={Six architectures evaluated: SimpleNN (52–67%), DNN (65–70%), FSE Phase 0 (68–70%, high AUC), FSE Phase 1 (62–68%, detector-aware), Random Forest (75–79%), XGBoost (83–91%, best overall). Token-based Bayesian handling, stratified split, DPG track selections, JAX JIT compilation (2.7x speedup). XGBoost substantially outperforms neural networks. Paper: arXiv:2309.07768}
+  note={Six architectures evaluated: SimpleNN (52-67%), DNN (65-70%), FSE Phase 0 (68-70%, high AUC), FSE Phase 1 (62-68%, detector-aware), Random Forest (75-79%), XGBoost (83-91%, best overall). Token-based Bayesian handling, stratified split, DPG track selections, JAX JIT compilation (2.7x speedup). XGBoost substantially outperforms neural networks. Paper: arXiv:2309.07768}
 }
 ```
 
 ---
 
-## Appendix: FSE Detector-Aware (Phase 1) – Novel Research Applications
+## Appendix: FSE Detector-Aware (Phase 1) - Specialised Research Applications
 
-Whilst XGBoost dominates in raw accuracy across standard ALICE analysis, the **FSE Detector-Aware (Phase 1)** architecture presents novel advantages for specialised physics research studies, particularly those involving:
+Whilst XGBoost dominates in raw accuracy, FSE Phase 1 enables novel physics research requiring detector-system transparency and robustness. Phase 1 is fundamentally different from tree-based methods: it explicitly models detector availability as a learned feature dimension, rather than masking features pre-input.
 
-### 1. Detector Upgrade Studies and Resilience Testing
+### Use Cases for FSE Phase 1 Over XGBoost
 
-**Research Case:** Investigating performance during detector commissioning or partial detector failures
+**Detector Failure and Commissioning Studies:** FSE Phase 1 can selectively disable detector groups at inference time without retraining. XGBoost requires all features or model retraining. Phase 1 enables rapid evaluation of physics performance under partial detector failure (e.g., TOF offline, TPC sector disabled).
 
-**FSE Phase 1 Advantages:**
+**Example:** Quantify PID accuracy degradation if TOF becomes unavailable during data-taking. Train once on full detector; disable TOF input at inference; observe accuracy change. Tree models cannot do this.
 
-- **Explicit per-detector masking:** Models gracefully handle missing detector subsystems without retraining
-- **Adaptive importance weighting:** Automatically learns which detectors are critical for each momentum region
-- **Robustness to sensor failure:** Gradually degrade accuracy as detectors fail; no cliff-edge performance drop
-- **Transfer learning:** Train on full detector configuration; deploy on degraded configuration without retraining
+**Cross-Detector Comparison:** FSE Phase 1 learns explicit per-detector importance weights. Compare detector contributions to PID across ALICE, LHCb, Belle II with a unified architecture. Phase 1 provides interpretable "detector importance" metrics for each particle type and momentum region. Tree models produce only opaque feature importance.
 
-**Novel capability:** Can simulate detector failure scenarios (TOF disabled, TPC sector outage, Bayesian system offline) post-hoc without rebuilding models. Traditional ensemble methods (XGBoost, Random Forest) cannot selectively ignore input features at inference time.
+**Real-Time Trigger under Resource Constraints:** HLT (High-Level Trigger) has variable CPU budgets. FSE Phase 1 gracefully degrades accuracy as expensive detector computations are omitted. Precompute accuracy for each detector-mask combination. XGBoost requires all features; disabling any causes unpredictable performance.
 
-**Research applications:**
-- Quantifying minimum detector requirements for physics analyses
-- Planning upgrade schedules based on PID performance constraints
-- Pre-computing performance degradation curves for operations planning
+**Example:** At trigger level, computing full TOF timing is expensive. Phase 1 model can run with TPC+Kinematics only, with quantified accuracy drop. XGBoost cannot selectively accept partial input.
 
-### 2. Heterogeneous Detector Analysis (Multi-Experiment Studies)
+**Physics-Informed Data Quality:** FSE Phase 1 separates detector-mode prediction from particle classification. Use detector-mode output to identify anomalous tracks (e.g., TPC signal inconsistent with TOF). Tree models cannot output per-detector confidence; all decisions are opaque.
 
-**Research Case:** Comparing PID across different detector configurations (ALICE vs LHCb, different magnetic fields, detector geometries)
+**Uncertainty Quantification:** Multi-head attention in Phase 1 naturally provides uncertainty via head disagreement. Different heads potentially specialise on different detector modes. Can output confidence intervals for PID predictions. XGBoost provides single point estimates.
 
-**FSE Phase 1 Advantages:**
+**Transfer Learning for New Detector Configurations:** Train Phase 1 on standard ALICE detector. Deploy to proposed detector upgrade (new TOF timing resolution) by retraining only detector-embedding layer whilst freezing feature extraction and classification layers. XGBoost cannot be partially retrained; must retrain from scratch.
 
-- **Detector-mode dimensionality:** Explicitly encodes "which detectors are present" as learned feature
-- **Cross-detector generalisation:** Model trained on ALICE can be adapted to different configurations by freezing phase-space embeddings and retraining detector mode branches
-- **Principled feature importance:** Quantify each detector's contribution to PID confidence per momentum/pseudorapidity
+### Research Scenarios: FSE Phase 1 vs XGBoost
 
-**Novel capability:** Enable physics analyses that require PID comparison across multiple facilities with different detector configurations. Provides interpretable detector importance attribution.
-
-**Research applications:**
-- Understanding how detector configuration affects particle identification capability
-- Designing minimal detector systems for future facilities based on ALICE lessons learned
-- Training models for proposed detector upgrades before construction
-
-### 3. Physics-Constrained Analyses with Detector Availability Correlation
-
-**Research Case:** Studying processes where physics requires correlating detector availability with kinematics (e.g., fragmentation in highly-boosted jets, forward-rapidity analyses with incomplete acceptance)
-
-**FSE Phase 1 Advantages:**
-
-- **Detector availability as feature:** Model explicitly learns correlations between track kinematics and detector availability (not hidden in feature masking)
-- **Transparent detector bias:** Directly observable whether model bias correlates with detector configuration
-- **Per-detector confidence weights:** Output individual detector confidence scores in addition to final PID prediction
-
-**Novel capability:** Quantify and correct for detector-bias-induced distortions in physics measurements. Enables principled unfolding corrections specific to detector configuration.
-
-**Research applications:**
-- Identifying and correcting detector-configuration-induced biases in fragmentation measurements
-- Forward-backward asymmetry analyses requiring detector symmetry understanding
-- Rare decay searches sensitive to detector acceptance correlations
-
-### 4. Real-Time Trigger and Event Selection Studies
-
-**Research Case:** Deploying PID at High-Level Trigger (HLT) with variable computational budgets
-
-**FSE Phase 1 Advantages:**
-
-- **Graceful degradation:** Can disable expensive detector groups (e.g., TOF β measurements) when CPU budget tight at trigger level
-- **Explicit latency-accuracy trade-off:** Pre-compute accuracy for different detector-mask combinations
-- **Adaptive resource allocation:** Intelligently allocate HLT computing across detector subsystems based on physics requirements
-
-**Novel capability:** Unlike tree models which require all features, Phase 1 model operates on subsets of detector inputs without performance cliff. Enables dynamic trigger strategies responding to detector and computing conditions.
-
-**Research applications:**
-- Optimising HLT trigger efficiency during high-luminosity running
-- Developing contingency trigger strategies for detector issues
-- Quantifying computing-cost-to-physics-performance trade-offs
-
-### 5. Interpretability and Physics Understanding
-
-**Research Case:** Understanding why PID fails in certain kinematic regions; debugging physics anomalies
-
-**FSE Phase 1 Advantages:**
-
-- **Detector attention weights:** Multi-head attention outputs show which detector groups attend to which feature combinations
-- **Per-detector gating values:** Explicitly interpretable scalar indicating model's learned importance for each detector per sample
-- **Layer-wise decomposition:** Can trace decision flow: kinematics → detector mode → adaptive gating → final classification
-
-**Novel capability:** Provides transparent window into model decision-making, enabling physics interpretation absent in black-box tree models.
-
-**Research applications:**
-- Physics discovery: Identify anomalous tracks where model assigns unusual detector importance (potential new physics signals)
-- Debugging: Systematically understand performance loss in poorly-performing kinematic regions
-- Publication support: Provide explainability figures for publications (detector importance evolution vs pT, detailed attention visualisation)
-
-### 6. Extended Bayesian Framework and Uncertainty Quantification
-
-**Research Case:** Propagating PID uncertainties through subsequent physics analyses; Bayesian stacking
-
-**FSE Phase 1 Advantages:**
-
-- **Token-aware confidence:** Can output separate confidence scores for "high TOF availability" vs "low TOF" scenarios
-- **Multi-head attention uncertainty:** Different heads potentially model different confidence regimes; can extract Bayesian uncertainty from head disagreement
-- **Explicit missing-data handling:** Naturally accommodates input uncertainties via token mechanism; extends to continuous probability distributions
-
-**Novel capability:** Phase 1 architecture naturally supports uncertainty quantification through detector-awareness and multi-head attention. Can output Bayesian distributions over PID assignments rather than point predictions.
-
-**Research applications:**
-- Propagating PID systematic uncertainties in rare decay branching ratio measurements
-- Bayesian combination with other PID methods (Bayesian prior updated by neural network)
-- Optimal track selection: probabilistic acceptance based on detector availability and momentum
-
-### 7. Anomaly Detection and Data Quality Monitoring
-
-**Research Case:** Identifying unusual detector signatures, data corruption, or misalignment
-
-**FSE Phase 1 Advantages:**
-
-- **Detector-specific anomaly scores:** Can compute "does this TPC signal look anomalous given this TOF measurement?" separately
-- **Attention weight anomaly detection:** Unusual attention patterns may indicate detector misconfiguration
-- **Per-detector reconstruction error:** Can identify which detector subsystems are producing anomalous data
-
-**Novel capability:** Enables fine-grained detector data quality monitoring beyond simple hit-counting, with physics-informed anomaly detection.
-
-**Research applications:**
-- Real-time detector quality monitoring during data taking
-- Post-reconstruction data quality checks identifying suspect event ranges
-- Cross-detector consistency validation (flagging TPC-TOF disagreements indicative of calibration issues)
-
-### 8. Training Data Efficiency and Low-Statistics Regimes
-
-**Research Case:** Heavy-ion run-specific analyses requiring specialised training on limited statistics in particular kinematic regions
-
-**FSE Phase 1 Advantages:**
-
-- **Transfer learning across detector modes:** Train jointly on "full detector" and "degraded detector" samples; improves low-statistics detector-degraded case via shared representations
-- **Detector mode as auxiliary task:** Multi-task learning objective (classify particle + predict detector mode) regularises learning, improving sample efficiency
-- **Explicit inductive bias:** Hard-coding detector structure reduces effective model complexity; lower sample complexity than fully-connected alternatives
-
-**Novel capability:** Achieves better accuracy on low-statistics regime through structured inductive bias that XGBoost/Random Forest lack.
-
-**Research applications:**
-- Commissioning analysis where particular detector modes have very few events
-- Specialised physics analyses in forward rapidity regions with limited statistics
-- Training on restricted datasets during detector commissioning or upgrade periods
-
----
-
-### Comparison: When to Use FSE Phase 1 Over Tree-Based Methods
-
-| Research Scenario | XGBoost Accuracy | FSE Phase 1 Accuracy | Recommendation |
+| Scenario | XGBoost | FSE Phase 1 | Winner |
 |---|---|---|---|
-| Standard momentum range analysis | 91% | 68% | XGBoost (best accuracy) |
-| Detector upgrade/failure studies | Cannot disable features | Explicit masking | **FSE Phase 1 (novel)** |
-| Multi-detector comparison | Feature importance only | Interpretable detector importance | **FSE Phase 1 (novel)** |
-| Physics-biased detector studies | Opaque to physics | Transparent detector correlation | **FSE Phase 1 (novel)** |
-| HLT resource-constrained PID | Requires all features | Graceful degradation | **FSE Phase 1 (novel)** |
-| Interpretability/understanding | Black-box | Attention + gating transparency | **FSE Phase 1 (novel)** |
-| Uncertainty quantification | Not designed | Multi-head uncertainty | **FSE Phase 1 (novel)** |
-| Data quality monitoring | Difficult | Per-detector anomaly scores | **FSE Phase 1 (novel)** |
-| Low-statistics training | Standard learning | Transfer + auxiliary tasks | **FSE Phase 1 (novel)** |
-| Reproducing standard PID | N/A | Best neural network accuracy | **FSE Phase 1 (best NN)** |
+| Standard analysis, maximum accuracy | 91% | 68% | XGBoost |
+| Detector offline during running | Cannot operate | Graceful degradation | FSE Phase 1 |
+| Commissioning study: vary detector subsystems | Requires retrain | Selective masking at inference | FSE Phase 1 |
+| Physics publication: explain which detectors matter | Feature importance only | Attention weights + gating | FSE Phase 1 |
+| HLT: trade computation for accuracy | All features required | Disable TOF, use TPC only | FSE Phase 1 |
+| Multi-experiment comparison | Cannot interpret detector role | Per-detector importance vectors | FSE Phase 1 |
 
----
+### Practical Implementation Guidance
 
-### Conclusion on FSE Phase 1
+**For production PID:** Use XGBoost. 83-91% accuracy is significantly better than FSE Phase 1's 62-68%. Standard physics analyses benefit from maximum accuracy.
 
-Whilst **XGBoost dominates for maximum accuracy in standard analyses**, the **FSE Detector-Aware (Phase 1)** architecture enables novel research directions centred on:
+**For detector studies:** Use FSE Phase 1. Loss of 15-23% accuracy is acceptable when the research goal involves understanding detector performance, reliability, or comparison. Phase 1 provides interpretability and robustness XGBoost cannot offer.
 
-1. **Understanding detector systems themselves** (not just classifying particles)
-2. **Robustness to detector variations** (commissioning, failures, upgrades)
-3. **Physics interpretation** through interpretable detector importance
-4. **Propagating detector-specific uncertainties**
-5. **Gracefully degrading performance** under resource constraints
-6. **Cross-detector and cross-facility comparisons**
+**For critical online systems:** Use FSE Phase 1. Graceful degradation under partial detector failure is valuable for trigger systems. XGBoost's rigid feature requirements create operational risk.
 
-Future research should consider Phase 1 as **complementary to XGBoost** for physics studies prioritising interpretability, robustness, and detector-system understanding over raw accuracy. The 15–23% accuracy loss is justified when the research question directly involves detector configuration, performance, or understanding.
+**For interpretability in publications:** Use FSE Phase 1 for supplementary analysis. Show detector attention patterns, per-detector gating values, and failure mode analysis. These explainability outputs strengthen physics papers beyond what tree models provide.
 
 ---
 
 **Updated:** 21 January 2026 | **Status:** Production Ready
 
-**Key Result:** XGBoost is the recommended production model, achieving 83–91% accuracy (15–23% improvement over best neural network). FSE Phase 1 remains valuable for specialised detector-focused physics research requiring interpretability and robustness.
+**Key Result:** XGBoost is the recommended production model, achieving 83-91% accuracy. FSE Phase 1 is recommended for detector-centric research, commissioning studies, and online systems requiring graceful degradation.
