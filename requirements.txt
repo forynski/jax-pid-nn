@@ -2,10 +2,13 @@ jax
 jaxlib
 optax
 flax
+
 pandas
 numpy
 matplotlib
 seaborn
-scikit-learn
-optuna
 tqdm
+
+scikit-learn
+xgboost
+optuna
