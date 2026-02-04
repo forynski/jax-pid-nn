@@ -49,6 +49,139 @@ Tree-based ensemble methods naturally exploit the structure of high-energy physi
 
 ---
 
+## ML Inference on Real Raw Data (LHC23 Run 544122)
+
+### Deployment on 7.47M Real Tracks
+
+This section validates the XGBoost models (trained on simulated Pb–Pb data) on **7,473,918 raw LHC23 tracks** from run 544122. The goal is to test robustness to real detector effects, saturation, and sim-to-real domain gaps.
+
+#### Dataset Characteristics
+
+| Metric | Value |
+|---|---|
+| Total tracks | 7,473,918 |
+| pT range | 0.115–19.996 GeV/c |
+| Pseudorapidity | η ∈ [–0.8, +0.8] (100%) |
+| DCA selections | 100% pass DPG cuts (DCA\_xy < 0.105 cm, DCA\_z < 0.12 cm) |
+| TPC-only tracks | 4,999,692 (66.9%) |
+| TPC+TOF tracks | 2,474,225 (33.1%) |
+| Bayesian PID available | 2,474,225 (33.1%) |
+| Bayesian PID missing (token) | 4,999,693 (66.9%) |
+
+All tracks satisfy the standard ALICE Run 3 DPG quality selections, ensuring a clean physics sample.
+
+#### ML Production Fractions (XGBoost Predictions)
+
+| Particle | Count | Fraction | ⟨pT⟩ (GeV/c) | ⟨η⟩ | Mean Confidence |
+|---|---|---|---|---|---|
+| Pion | 7,057,284 | 94.4% | 0.690 | –0.001 | 0.9124 |
+| Kaon | 265,243 | 3.5% | 1.272 | –0.023 | 0.5938 |
+| Proton | 143,514 | 1.9% | 1.451 | 0.018 | 0.5839 |
+| Electron | 7,877 | 0.1% | 0.340 | –0.226 | 0.5703 |
+
+The spectrum is pion-dominated, as expected in Pb–Pb, with kaons and protons at the few-per-cent level and electrons extremely rare.
+
+#### Physics Validation on Real Data
+
+**TOF β Ordering (Correct)**
+
+| Particle | Mean β | Expected | Status |
+|---|---|---|---|
+| Pion | 0.9071 | Highest | Correct (π > K) |
+| Kaon | 0.8920 | Lower than π, higher than p | Correct (π > K > p) |
+| Proton | 0.8649 | Lower than K | Correct |
+| Electron | 0.8464 | Lowest | Correct |
+
+The time-of-flight response obeys the expected mass ordering (lighter particles travel faster), confirming that **TOF-based discrimination is physically sound in real data**.
+
+**TPC dE/dx Ordering (Broken in Real Data)**
+
+| Particle | Mean dE/dx | Expected Ordering | Observed | Status |
+|---|---|---|---|---|
+| Pion | 54,727 | π < K < p | π > K | Problematic |
+| Kaon | 49,733 | π < K < p | K < π | Inverted |
+| Proton | 408,277 | > K | > K | Correct |
+| Electron | 1,452,242 | Highest | Highest | Correct |
+
+In real data, pion dE/dx is measured **higher** than kaon dE/dx in the low-pT region, violating the expected π < K mass ordering. This is consistent with **TPC saturation** in the 0–1 GeV/c region, where π and K become difficult to separate using dE/dx alone. The XGBoost model, trained on idealised Monte Carlo where ordering is always correct, cannot fully compensate for this effect without TOF.
+
+#### ML vs Bayesian PID Agreement
+
+Agreement is evaluated for tracks with both ML prediction and non-zero Bayesian probabilities.
+
+| Particle | ML–Bayesian Agreement | Interpretation |
+|---|---|---|
+| Pion | 79.1% | Good agreement |
+| Kaon | 38.2% | Poor; critical underidentification |
+| Proton | 55.2% | Moderate agreement |
+| Electron | 70.5% | Reasonable agreement |
+
+Overall agreement is 76.4 per cent, but the **kaon channel is problematic**, with ML and Bayesian disagreeing in more than 60 per cent of cases. Bayesian PID finds roughly **twice as many kaons** as the ML model in the overlapping sample.
+
+#### Confidence Distribution (All Real Tracks)
+
+| Confidence Range | Fraction of Tracks | Interpretation |
+|---|---|---|
+| > 0.99 | 53.7% | Very high confidence (mostly TPC+TOF) |
+| 0.95–0.99 | 8.3% | High confidence |
+| 0.90–0.95 | 5.0% | Medium confidence |
+| 0.80–0.90 | 8.2% | Medium–low confidence |
+| < 0.80 | 24.8% | Low confidence (mostly TPC-only) |
+
+The distribution is **bimodal**: roughly half the tracks have confidence > 0.99, while nearly a quarter fall below 0.80. This matches expectations: TPC+TOF tracks are typically high-confidence, whereas TPC-only saturated tracks are much more ambiguous.
+
+#### Momentum-Dependent Production Fractions
+
+| pT Bin (GeV/c) | Pion | Kaon | Proton | Electron | Tracks |
+|---|---|---|---|---|---|
+| 0–0.5 | 98.6% | 1.1% | 0.1% | 0.2% | 3,290,052 |
+| 0.5–1.0 | 93.9% | 4.8% | 1.3% | 0.1% | 2,542,127 |
+| 1.0–1.5 | 92.0% | 1.8% | 6.3% | 0.0% | 983,468 |
+| 1.5–2.0 | 85.3% | 8.5% | 6.2% | 0.0% | 389,341 |
+| 2.0–3.0 | 72.2% | 19.6% | 8.2% | 0.0% | 218,173 |
+| 3.0–5.0 | 60.9% | 28.1% | 11.1% | 0.0% | 46,060 |
+| 5.0–10.0 | 66.0% | 24.5% | 9.4% | 0.1% | 4,374 |
+| > 10 | 78.0% | 17.3% | 4.6% | 0.0% | 323 |
+
+This pattern is **physically reasonable**:
+
+- Low pT (< 1 GeV/c): Pion-dominated, reflecting high multiplicity of soft pions.
+- Intermediate pT (1.5–3 GeV/c): Kaon fraction increases substantially, peaking around 2–3 GeV/c (19–28%).
+- Higher pT (> 3 GeV/c): Proton fraction rises, kaon and proton fractions remain at the 10–30 per cent level.
+
+The kaon peak in the TOF region confirms that **TOF-assisted discrimination is working** and that the XGBoost model is capturing the correct physics at higher transverse momentum.
+
+#### Summary of Real-Data Inference
+
+**Strengths**
+
+- TOF β ordering is correct for all species.
+- High-pT kaon and proton fractions match expectations from hadron production.
+- Confidence scores are well-calibrated and strongly correlated with detector availability.
+- 100 per cent of real tracks receive an ML prediction (7.47M tracks).
+
+**Critical Issues**
+
+- TPC dE/dx ordering is inverted for π/K in real data due to saturation, breaking the assumptions used in training.
+- ML underestimates kaon yield (3.5 per cent vs ~8 per cent from Bayesian), particularly in low-pT, TPC-only regime.
+- ML–Bayesian agreement for kaons is only 38 per cent.
+
+**Recommendations for Production Use**
+
+- Apply a **confidence > 0.90 threshold** for physics analyses (covers ≈ 67 per cent of tracks with high purity).
+- Use ML kaon predictions **only above pT > 1.5 GeV/c**, where TOF is available and TPC saturation is less severe.
+- For 0–1 GeV/c, rely on Bayesian PID and dedicated low-pT analyses; treat ML kaon predictions as indicative rather than final.
+- Cross-check all rare-species yields (kaons, protons, electrons) against Bayesian results and known spectra.
+
+**Recommendations for Future Model Development**
+
+- Incorporate **real detector effects** (TPC saturation) into the training dataset.
+- Use **class weighting or focal loss** in tree objectives to emphasise kaons.
+- Explore **mixture-of-experts** architectures that separate TPC-only and TOF-assisted regimes.
+- Implement continuous monitoring of ML–Bayesian agreement in deployment to detect drifts.
+
+---
+
 ## Key Findings
 
 ### 1. Tree-Based Models Dramatically Outperform Neural Networks
@@ -121,8 +254,8 @@ All models trained on DPG-recommended selections (November 2025):
 | Selection | Cut Value |
 |---|---|
 | Pseudorapidity | η ∈ [–0.8, +0.8] |
-| Impact parameter (transverse) | DCA_xy < 0.105 cm |
-| Impact parameter (longitudinal) | DCA_z < 0.12 cm |
+| Impact parameter (transverse) | DCA\_xy < 0.105 cm |
+| Impact parameter (longitudinal) | DCA\_z < 0.12 cm |
 | TPC cluster quality | ≥ 70 clusters |
 | ITS cluster quality | ≥ 3 clusters |
 
@@ -242,12 +375,12 @@ FSE Phase 1 is **not** recommended for standard physics analyses. However, it is
 | **JAX Models Loss** | Focal Loss (α=0.5, γ=2.5) | Handles class imbalance; α=0.5 emphasises rare classes more than standard |
 | **Class Weights** | Balanced via sklearn | Equalises learning signal for minority particles (K, p, e) |
 | **Optimiser** | Adam (lr=1e-4 to 5e-5) | Standard for neural networks; lower learning rate for DNN stability |
-| **Tree Models** | XGBoost native | Objective: multi:softmax; max_depth=7; learning_rate=0.1 |
+| **Tree Models** | XGBoost native | Objective: multi:softmax; max\_depth=7; learning\_rate=0.1 |
 | **Batch Size** | 256 | JAX XLA sweet spot for GPU memory + throughput |
 | **Max Epochs** | 100 | Early stopping (patience=30) |
 | **Train/Test Split** | 80/20 **stratified** | Maintains identical class distribution across sets |
 | **Random Seed** | 231 | Reproducible across runs |
-| **Bayesian Handling** | Token-based (-0.25) | Explicit missing data signal; prevents confusion with class imbalance |
+| **Bayesian Handling** | Token-based (–0.25) | Explicit missing data signal; prevents confusion with class imbalance |
 
 ### Dataset
 
@@ -256,16 +389,16 @@ FSE Phase 1 is **not** recommended for standard physics analyses. However, it is
 | Category | Features |
 |---|---|
 | **Momentum** | pt, eta, phi |
-| **TPC** | tpc_signal, tpc_nsigma_pi, tpc_nsigma_ka, tpc_nsigma_pr, tpc_nsigma_el |
-| **TOF** | tof_beta, tof_nsigma_pi, tof_nsigma_ka, tof_nsigma_pr, tof_nsigma_el |
-| **Bayesian** | bayes_prob_pi, bayes_prob_ka, bayes_prob_pr, bayes_prob_el, bayes_available |
-| **Track Quality** | dca_xy, dca_z, has_tpc, has_tof |
+| **TPC** | tpc\_signal, tpc\_nsigma\_pi, tpc\_nsigma\_ka, tpc\_nsigma\_pr, tpc\_nsigma\_el |
+| **TOF** | tof\_beta, tof\_nsigma\_pi, tof\_nsigma\_ka, tof\_nsigma\_pr, tof\_nsigma\_el |
+| **Bayesian** | bayes\_prob\_pi, bayes\_prob\_ka, bayes\_prob\_pr, bayes\_prob\_el, bayes\_available |
+| **Track Quality** | dca\_xy, dca\_z, has\_tpc, has\_tof |
 
 **Data Statistics:**
 
 | Metric | Value |
 |---|---|
-| Total tracks | 20,027,670 (Pb-Pb, Run 544122) |
+| Total tracks | 20,027,670 (Pb–Pb, Run 544122) |
 | After DPG selections | 895,535 (Full) |
 | Momentum range | 0–∞ GeV/c |
 | Class distribution | π (69–85%), K (5–15%), p (3–10%), e (0.4–2%) |
@@ -281,14 +414,14 @@ FSE Phase 1 is **not** recommended for standard physics analyses. However, it is
 
 | Framework | Time | Speedup |
 |---|---|---|
-| PyTorch | ~70 min | 1.0x |
-| TensorFlow | ~50 min | 1.4x |
-| **JAX** | **~26 min** | **2.7x** |
+| PyTorch | ~70 min | 1.0× |
+| TensorFlow | ~50 min | 1.4× |
+| **JAX** | **~26 min** | **2.7×** |
 
 **Why JAX is 2.7× faster:**
 
-- **XLA Compilation**: 40–50% speedup via kernel fusion and memory optimisation.
-- **JIT Compilation**: 50–100% speedup across 100 epochs (compile once, execute 99 times).
+- **XLA Compilation**: 40–50 per cent speedup via kernel fusion and memory optimisation.
+- **JIT Compilation**: 50–100 per cent speedup across 100 epochs (compile once, execute 99 times).
 - **Automatic Vectorisation (vmap)**: Optimal GPU utilisation at batch size 256.
 
 ---
@@ -328,7 +461,7 @@ FSE Phase 1 is **not** recommended for standard physics analyses. However, it is
 
 ## Contact and Support
 
-- **Email:** robert.forynski@cern.ch
+- **Email:** [robert.forynski@cern.ch](mailto:robert.forynski@cern.ch)
 - **GitHub Issues:** Report bugs
 - **Institution:** CERN, ALICE Collaboration
 
@@ -341,7 +474,7 @@ FSE Phase 1 is **not** recommended for standard physics analyses. However, it is
   title={Particle Identification with Machine Learning for Pb-Pb Collisions in ALICE (Run 544122)},
   author={Forynski, Robert},
   year={2026},
-  month={January},
+  month={February},
   url={https://github.com/forynski/jax-pid-nn},
   note={Six architectures evaluated: SimpleNN (52–67%), DNN (65–70%), FSE Phase 0 (51–70%, high AUC), FSE Phase 1 (58–68%, detector-aware), Random Forest (71–76%), XGBoost (83–91%, best). Tree-based models significantly outperform neural networks on Pb-Pb data with 91.8% missing Bayesian values. Token-based Bayesian handling, stratified split, DPG track selections, JAX JIT compilation (2.7× speedup). Recommendation: Use XGBoost for production accuracy; FSE Phase 1 for detector commissioning studies only.}
 }
@@ -349,6 +482,6 @@ FSE Phase 1 is **not** recommended for standard physics analyses. However, it is
 
 ---
 
-**Updated:** 23 January 2026 | **Status:** Production Ready | **Data:** Pb-Pb Run 544122
+**Updated:** 04 February 2026 | **Status:** Production Ready | **Data:** Pb-Pb Run 544122
 
 **Key Result:** XGBoost achieves 83–91% accuracy across all momentum ranges, providing 20–23% improvement over the best neural network. Tree-based ensemble methods fundamentally match the structure of high-energy physics data better than attention-based architectures, especially under extreme data sparsity (92% missing Bayesian values). FSE Phase 1 is recommended exclusively for detector-centric research and commissioning, not production PID.
