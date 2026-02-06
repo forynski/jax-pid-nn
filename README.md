@@ -20,7 +20,7 @@ Includes six complementary architectures: **SimpleNN**, **DNN**, **FSE + Attenti
 
 ## Executive Summary
 
-**JAX-PID-NN** is a comprehensive machine learning framework for **particle identification (PID)** in ALICE at the LHC, optimised for challenging momentum regions. The framework addresses the fundamental problem of **extreme data sparsity**: in the critical 0–1 GeV/c range, 91.8 per cent of Bayesian PID measurements are missing, making traditional rule-based approaches unreliable. Six complementary machine learning architectures are trained and evaluated on Pb-Pb Monte Carlo reconstructed data to understand which paradigm best handles high-dimensional, partially-missing physics data.
+**JAX-PID-NN** is a comprehensive machine learning framework for **particle identification (PID)** in ALICE at the LHC, optimised for challenging momentum regions. The framework addresses the fundamental problem of **extreme data sparsity**: in the critical 0–1 GeV/c range, 91.8 per cent of Bayesian PID measurements are missing, making traditional rule-based approaches unreliable. Four neural architectures — SimpleNN, DNN, FSE + Attention (Phase 0) and FSE + Attention (Detector-Aware, Phase 1) — are implemented in JAX/Flax, exploiting XLA compilation and JIT for fast training and inference, while two tree-based baselines — Random Forest (scikit-learn) and XGBoost (native XGBoost library) — are trained using their respective optimised libraries. Together, these six complementary models are evaluated on Pb–Pb Monte Carlo reconstructed data to understand which paradigm best handles high-dimensional, partially-missing physics data.
 
 ### Headline Finding: Tree-Based Models Dominate
 
@@ -175,8 +175,8 @@ The kaon peak in the TOF region confirms that **TOF-assisted discrimination is w
 
 **Recommendations for Future Model Development**
 
-- Incorporate **real detector effects** (TPC saturation) into the training dataset.
-- Use **class weighting or focal loss** in tree objectives to emphasise kaons.
+- Incorporate **real detector effects** (TPC saturation) into the training dataset (DONE)
+- Use **class weighting or focal loss** in tree objectives to emphasise kaons (DONE)
 - Explore **mixture-of-experts** architectures that separate TPC-only and TOF-assisted regimes.
 - Implement continuous monitoring of ML–Bayesian agreement in deployment to detect drifts.
 
