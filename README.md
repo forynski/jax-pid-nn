@@ -175,10 +175,10 @@ The kaon peak in the TOF region confirms that **TOF-assisted discrimination is w
 
 **Recommendations for Future Model Development**
 
-- Incorporate **real detector effects** (TPC saturation) into the training dataset (DONE)
-- Use **class weighting or focal loss** in tree objectives to emphasise kaons (DONE)
-- Explore **mixture-of-experts** architectures that separate TPC-only and TOF-assisted regimes.
-- Implement continuous monitoring of ML–Bayesian agreement in deployment to detect drifts.
+- Refine the **MC–data domain matching** in the low‑pT, high‑occupancy TPC regime, so reconstructed Monte Carlo reproduces the π/K dE/dx distortion observed in real data rather than only the ideal ordering.
+- Systematically **tune existing class‑ and sample‑weighting schemes** (already in use) to stabilise kaon performance across momentum, including per‑pT weighting and alternative imbalance strategies.
+- Explore **mixture‑of‑experts architectures** that explicitly separate TPC‑only and TOF‑assisted regimes, allowing each expert to specialise in its detector configuration.
+- Implement **continuous monitoring of data–driven agreement metrics** (e.g. ML vs Bayesian, or ML vs reference spectra) in deployment to detect detector or calibration drifts over time.
 
 ---
 
