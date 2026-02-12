@@ -53,7 +53,7 @@ Tree-based ensemble methods naturally exploit the structure of high-energy physi
 
 ### Deployment on 7.47M Real Tracks
 
-This section validates the XGBoost models (trained on simulated Pb–Pb data) on **7,473,918 raw LHC23 tracks** from run 544122. The goal is to test robustness to real detector effects, saturation, and sim-to-real domain gaps.
+This section validates the XGBoost models trained on reconstructed (simulated + detector noise effect added) Pb–Pb data on **7,473,918 raw LHC23 tracks** from run 544122. The goal is to test robustness to real detector effects, saturation, and sim-to-real domain gaps.
 
 #### Dataset Characteristics
 
@@ -103,7 +103,9 @@ The time-of-flight response obeys the expected mass ordering (lighter particles 
 | Proton | 408,277 | > K | > K | Correct |
 | Electron | 1,452,242 | Highest | Highest | Correct |
 
-In real data, pion dE/dx is measured **higher** than kaon dE/dx in the low-pT region, violating the expected π < K mass ordering. This is consistent with **TPC saturation** in the 0–1 GeV/c region, where π and K become difficult to separate using dE/dx alone. The XGBoost model, trained on idealised Monte Carlo where ordering is always correct, cannot fully compensate for this effect without TOF.
+In real data, the pion dE/dx is observed to be **higher** than the kaon dE/dx in the low-pT region, violating the expected Bethe–Bloch mass ordering (π < K). This behaviour is consistent with **TPC response saturation** in the 0–1 GeV/c range, where the separation power between π and K using dE/dx alone becomes significantly reduced.
+
+Although the XGBoost model was trained on **fully reconstructed Monte Carlo samples**, which include realistic detector effects simulated with **GEANT** (such as energy loss fluctuations, electronic noise, and detector resolution), the training still reflects the nominal detector response where the π/K ordering is largely preserved. Consequently, when applied to real data—where residual mismodelling, local saturation effects, or calibration imperfections may distort the dE/dx response—the model cannot fully recover the separation without additional information from TOF.
 
 #### ML vs Bayesian PID Agreement
 
