@@ -259,7 +259,7 @@ All models trained on DPG-recommended selections (November 2025):
 | Impact parameter (transverse) | DCA\_xy < 0.105 cm |
 | Impact parameter (longitudinal) | DCA\_z < 0.12 cm |
 | TPC cluster quality | ≥ 70 clusters |
-| ITS cluster quality | ≥ 3 clusters |
+| ITS cluster quality (not implemented yet) | ≥ 3 clusters |
 
 ---
 
