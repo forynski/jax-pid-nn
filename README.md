@@ -263,7 +263,7 @@ All models trained on DPG-recommended selections (November 2025):
 
 ---
 
-## Actual Model Performance (January 2026, Pb-Pb Run 544122)
+## Actual Model Performance (January 2026, Monte Carlo Reconstructed LHC25f6 Pb-Pb Run 544122)
 
 ### Full Spectrum (0–∞ GeV/c)
 
